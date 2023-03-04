@@ -3433,9 +3433,10 @@ class PlayState3D extends MusicBeatState
 		for(strum in playerStrums){
 			// press
 			if(controlArray[strum.ID] && strum.isGray) {
-				FlxTween.tween(strum.sGeom, {height: 90, width: 90}, 0.05, {ease: FlxEase.sineIn, onComplete: function(t:FlxTween){
-					FlxTween.tween(strum.sGeom, {height: 108, width: 108}, 0.05, {ease: FlxEase.sineOut});
-				}});
+				strum.sGeom.height = 90;
+				strum.sGeom.width  = 90;
+
+				FlxTween.tween(strum.sGeom, {height: 108, width: 108}, 0.12, {ease: FlxEase.sineOut});
 			}
 			// "confirm"
 			if(controlReleaseArray[strum.ID]) 

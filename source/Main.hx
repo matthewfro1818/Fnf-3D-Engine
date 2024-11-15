@@ -21,6 +21,8 @@ class Main extends Sprite
 	public static var fpsVar:FPS;
 	public static var active3D:Bool = false;
 
+	public static var modelView:ModelView;
+
 	// nich
 	public static var daScene:Scene3D;
 

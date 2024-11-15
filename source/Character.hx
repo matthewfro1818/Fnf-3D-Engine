@@ -15,6 +15,11 @@ import openfl.utils.Assets;
 import haxe.Json;
 import haxe.format.JsonParser;
 
+import away3d.events.AnimationStateEvent;
+import away3d.library.Asset3DLibrary;
+import away3d.core.base.data.Face;
+import away3d.errors.AbstractMethodError;
+
 using StringTools;
 
 typedef CharacterFile = {
@@ -74,6 +79,35 @@ class Character extends FlxSprite
 	public var alreadyLoaded:Bool = true; //Used by "Change Character" event
 
 	public static var DEFAULT_CHARACTER:String = 'bf'; //In case a character is missing, it will use BF on its place
+	
+	public var isModel:Bool = false;
+	public var beganLoading:Bool = false;
+	public var modelName:String;
+	public var modelScale:Float = 1;
+	public var modelSpeed:Map<String, Float> = new Map<String, Float>();
+	public var model:ModelThing;
+	public var noLoopList:Array<String> = [];
+	public var modelType:String = "md2";
+	public var md5Anims:Map<String, String> = new Map<String, String>();
+
+	public var spinYaw:Bool = false;
+	public var spinYawVal:Int = 0;
+	public var spinPitch:Bool = false;
+	public var spinPitchVal:Int = 0;
+	public var spinRoll:Bool = false;
+	public var spinRollVal:Int = 0;
+	public var yTween:FlxTween;
+	public var xTween:FlxTween;
+	public var originalY:Float = -1;
+	public var originalX:Float = -1;
+	public var circleTween:FlxTween;
+	public var initYaw:Float = 0;
+	public var initPitch:Float = 0;
+	public var initRoll:Float = 0;
+	public var initX:Float = 0;
+	public var initY:Float = 0;
+	public var initZ:Float = 0;
+
 	public function new(x:Float, y:Float, ?character:String = 'bf', ?isPlayer:Bool = false)
 	{
 		super(x, y);
@@ -90,6 +124,83 @@ class Character extends FlxSprite
 		var library:String = null;
 		switch (curCharacter)
 		{
+			case 'steve':
+				modelName = "steve";
+				modelScale = 30;
+				modelSpeed = ["default" => 126 / 75];
+				isModel = true;
+				loadGraphicFromSprite(Main.modelView.sprite);
+				initYaw = -45;
+				initY = -28;
+				updateHitbox();
+				noLoopList = ["idle"];
+				Main.modelView.light.ambient = 1;
+				Main.modelView.light.specular = 0.0;
+				Main.modelView.light.diffuse = 0.0;
+
+			case 'doll':
+				modelName = "doll";
+				modelScale = 15;
+				modelSpeed = ["default" => 1.66, "idle" => 1];
+				isModel = true;
+				loadGraphicFromSprite(Main.modelView.sprite);
+				initYaw = -45;
+				updateHitbox();
+				noLoopList = ["singUP", 'singLEFT', 'singDOWN', 'singRIGHT'];
+				Main.modelView.light.ambient = 1;
+				Main.modelView.light.specular = 0;
+				Main.modelView.light.diffuse = 0;
+
+			case 'crash':
+				modelName = "crash";
+				modelScale = 15;
+				modelSpeed = ["default" => 2.6, "idle" => 1.8];
+				isModel = true;
+				loadGraphicFromSprite(Main.modelView.sprite);
+				initYaw = -45;
+				initZ = -25;
+				initY = -140;
+				updateHitbox();
+				noLoopList = ["idle", "singUP", 'singLEFT', 'singDOWN', 'singRIGHT'];
+				Main.modelView.light.ambient = 1;
+				Main.modelView.light.specular = 0;
+				Main.modelView.light.diffuse = 0;
+
+			case 'endo':
+				modelName = "Collection";
+				modelType = "md5";
+				modelScale = 25;
+				initYaw = -45;
+				initY = -115;
+				isModel = true;
+				loadGraphicFromSprite(Main.modelView.sprite);
+				updateHitbox();
+				noLoopList = ["singUP", 'singLEFT', 'singDOWN', 'singRIGHT'];
+				md5Anims["idle"] = "Collection_11";
+				md5Anims["singUP"] = "Collection_4";
+				md5Anims["singLEFT"] = "Collection_17";
+				md5Anims["singDOWN"] = "Collection_6";
+				md5Anims["singRIGHT"] = "Collection_14";
+				modelSpeed = ["default" => 1, "singRIGHT" => 1.7, "singLEFT" => 2, "singUP" => 1.5, "singDOWN" => 1.5];
+				Main.modelView.light.ambient = 0.5;
+				Main.modelView.light.specular = 1;
+				Main.modelView.light.diffuse = 1;
+			
+			case 'skeleton':
+				modelName = "skeleton";
+				modelType = "awd";
+				modelScale = 150;
+				initYaw = 90;
+				initY = 50;
+				isModel = true;
+				loadGraphicFromSprite(Main.modelView.sprite);
+				updateHitbox();
+				noLoopList = ["singUP", 'singLEFT', 'singDOWN', 'singRIGHT'];
+				modelSpeed = ["default" => 1];
+				Main.modelView.light.ambient = 0.5;
+				Main.modelView.light.specular = 1;
+				Main.modelView.light.diffuse = 1;
+
 			//case 'your character name in case you want to hardcode him instead':
 
 			default:
@@ -178,6 +289,23 @@ class Character extends FlxSprite
 		{
 			flipX = !flipX;
 
+			// Doesn't flip for BF, since his are already in the right place???
+			if (!isModel && !curCharacter.startsWith('bf'))
+			{
+				// var animArray
+				var oldRight = animation.getByName('singRIGHT').frames;
+				animation.getByName('singRIGHT').frames = animation.getByName('singLEFT').frames;
+				animation.getByName('singLEFT').frames = oldRight;
+
+				// IF THEY HAVE MISS ANIMATIONS??
+				if (animation.getByName('singRIGHTmiss') != null)
+				{
+					var oldMiss = animation.getByName('singRIGHTmiss').frames;
+					animation.getByName('singRIGHTmiss').frames = animation.getByName('singLEFTmiss').frames;
+					animation.getByName('singLEFTmiss').frames = oldMiss;
+				}
+			}
+
 			/*// Doesn't flip for BF, since his are already in the right place???
 			if (!curCharacter.startsWith('bf'))
 			{
@@ -241,7 +369,59 @@ class Character extends FlxSprite
 				playAnim(animation.curAnim.name + '-loop');
 			}
 		}
+		if (!isPlayer && !isModel)
+		{
+			if (animation.curAnim.name.startsWith('sing'))
+			{
+				holdTimer += elapsed;
+			}
+
+			var dadVar:Float = 4;
+
+			if (curCharacter == 'dad')
+				dadVar = 6.1;
+			if (holdTimer >= Conductor.stepCrochet * dadVar * 0.001)
+			{
+				idleEnd();
+				holdTimer = 0;
+			}
+		}
+		else if (!isPlayer && isModel)
+		{
+			if (model.currentAnim.startsWith('sing'))
+			{
+				holdTimer += elapsed;
+			}
+
+			var dadVar:Float = 4;
+
+			if (curCharacter == 'dad')
+				dadVar = 6.1;
+			if (holdTimer >= Conductor.stepCrochet * dadVar * 0.001)
+			{
+				idleEnd();
+				holdTimer = 0;
+			}
+		}
 		super.update(elapsed);
+
+		if (isModel)
+		{
+			if (spinYaw)
+			{
+				model.addYaw(elapsed * spinYawVal);
+			}
+
+			if (spinPitch)
+			{
+				model.addPitch(elapsed * spinPitchVal);
+			}
+
+			if (spinRoll)
+			{
+				model.addRoll(elapsed * spinRollVal);
+			}
+		}
 	}
 
 	public var danced:Bool = false;
@@ -265,6 +445,37 @@ class Character extends FlxSprite
 			else if(animation.getByName('idle' + idleSuffix) != null) {
 					playAnim('idle' + idleSuffix);
 			}
+			if (isModel && model == null)
+			{
+				trace("NO DANCE - NO MODEL");
+				return;
+			}
+			if (isModel && !model.fullyLoaded)
+			{
+				trace("NO DANCE - NO FULLY LOAD");
+				return;
+			}
+			if (isModel && !noLoopList.contains('idle'))
+				return;
+				playAnim('idle', true);
+		}
+	}
+	
+	public function idleEnd(?ignoreDebug:Bool = false)
+	{
+		if (!isModel && (!debugMode || ignoreDebug))
+		{
+			switch (curCharacter)
+			{
+				case 'gf' | 'gf-car' | 'gf-christmas' | 'gf-pixel' | "spooky":
+					playAnim('danceRight', true, false, animation.getByName('danceRight').numFrames - 1);
+				default:
+					playAnim('idle', true, false, animation.getByName('idle').numFrames - 1);
+			}
+		}
+		else if (isModel && (!debugMode || ignoreDebug))
+		{
+			playAnim('idle', true, false);
 		}
 	}
 
